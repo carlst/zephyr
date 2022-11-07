@@ -204,6 +204,7 @@ uint8_t ll_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 
 		stream = (void *)adv_iso_stream_acquire();
 		stream->big_handle = big_handle;
+		stream->dp = NULL;
 
 		if (!stream->link_tx_free) {
 			stream->link_tx_free = &stream->link_tx;
@@ -303,6 +304,7 @@ uint8_t ll_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 		       sizeof(lll_adv_iso->base_crc_init));
 	lll_adv_iso->data_chan_count =
 		ull_chan_map_get(lll_adv_iso->data_chan_map);
+	lll_adv_iso->payload_count = 0U;
 	lll_adv_iso->latency_prepare = 0U;
 	lll_adv_iso->latency_event = 0U;
 	lll_adv_iso->term_req = 0U;

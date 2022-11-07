@@ -67,6 +67,12 @@ LOG_MODULE_REGISTER(bt_ctlr_ull_iso);
 #define BT_CTLR_CONN_ISO_STREAMS 0
 #endif /* !CONFIG_BT_CTLR_CONN_ISO_STREAMS */
 
+#if defined(CONFIG_BT_CTLR_ADV_ISO_STREAM_COUNT)
+#define BT_CTLR_ADV_ISO_STREAMS (CONFIG_BT_CTLR_ADV_ISO_STREAM_COUNT)
+#else /* !CONFIG_BT_CTLR_ADV_ISO_STREAM_COUNT */
+#define BT_CTLR_ADV_ISO_STREAMS 0
+#endif /* CONFIG_BT_CTLR_ADV_ISO_STREAM_COUNT */
+
 #if defined(CONFIG_BT_CTLR_SYNC_ISO_STREAM_COUNT)
 #define BT_CTLR_SYNC_ISO_STREAMS (CONFIG_BT_CTLR_SYNC_ISO_STREAM_COUNT)
 #else /* !CONFIG_BT_CTLR_SYNC_ISO_STREAM_COUNT */
@@ -83,15 +89,14 @@ static isoal_status_t ll_iso_pdu_write(struct isoal_pdu_buffer *pdu_buffer,
 				       const size_t   consume_len);
 static isoal_status_t ll_iso_pdu_emit(struct node_tx_iso *node_tx,
 				      const uint16_t handle);
-#if defined(CONFIG_BT_CTLR_CONN_ISO)
 static isoal_status_t ll_iso_pdu_release(struct node_tx_iso *node_tx,
 					 const uint16_t handle,
 					 const isoal_status_t status);
-#endif /* CONFIG_BT_CTLR_CONN_ISO */
 #endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_CONN_ISO */
 
 /* Allocate data path pools for RX/TX directions for each stream */
 #define BT_CTLR_ISO_STREAMS ((2 * (BT_CTLR_CONN_ISO_STREAMS)) + \
+			     BT_CTLR_ADV_ISO_STREAMS + \
 			     BT_CTLR_SYNC_ISO_STREAMS)
 #if BT_CTLR_ISO_STREAMS
 static struct ll_iso_datapath datapath_pool[BT_CTLR_ISO_STREAMS];
@@ -258,8 +263,8 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 	}
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
-#if defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_BROADCAST_ISO)
+#if defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_ADV_ISO)
 	isoal_source_handle_t source_handle;
 	uint8_t max_octets;
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
@@ -342,6 +347,21 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 		return BT_HCI_ERR_INVALID_PARAM;
 	}
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
+
+#if defined(CONFIG_BT_CTLR_ADV_ISO)
+	struct lll_adv_iso_stream *stream;
+	uint16_t stream_handle;
+
+	if (handle < BT_CTLR_ADV_ISO_STREAM_HANDLE_BASE) {
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
+	stream_handle = LL_BIS_ADV_IDX_FROM_HANDLE(handle);
+
+	stream = ull_adv_iso_stream_get(stream_handle);
+	if (!stream || stream->dp) {
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
+#endif /* CONFIG_BT_CTLR_ADV_ISO */
 
 #if defined(CONFIG_BT_CTLR_SYNC_ISO)
 	struct lll_sync_iso_stream *stream;
@@ -485,6 +505,65 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 	}
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
+#if defined(CONFIG_BT_CTLR_ADV_ISO)
+	struct ll_adv_iso_set *adv_iso;
+	struct lll_adv_iso *lll_iso;
+
+	adv_iso = ull_adv_iso_by_stream_get(stream_handle);
+	lll_iso = &adv_iso->lll;
+
+	role = 1U; /* FIXME: Set role from LLL struct */
+	framed = 0;
+	burst_number = lll_iso->bn;
+	sdu_interval = lll_iso->sdu_interval;
+	max_octets = lll_iso->max_pdu;
+	iso_interval = lll_iso->sub_interval;
+
+	if (path_id == BT_HCI_DATAPATH_ID_HCI) {
+		/* Not vendor specific, thus alloc and emit functions known */
+		err = isoal_source_create(handle, role, framed,
+					burst_number, flush_timeout,
+					max_octets, sdu_interval, iso_interval,
+					stream_sync_delay, group_sync_delay,
+					ll_iso_pdu_alloc, ll_iso_pdu_write,
+					ll_iso_pdu_emit, ll_iso_pdu_release,
+					&source_handle);
+	} else {
+		/* Set up vendor specific data path */
+		isoal_source_pdu_alloc_cb pdu_alloc;
+		isoal_source_pdu_write_cb pdu_write;
+		isoal_source_pdu_emit_cb  pdu_emit;
+		isoal_source_pdu_release_cb pdu_release;
+
+		/* Request vendor source callbacks for path */
+		if (ll_data_path_source_create(handle, dp, &pdu_alloc, &pdu_write,
+					       &pdu_emit, &pdu_release)) {
+			err = isoal_source_create(handle, role, framed,
+						burst_number, flush_timeout,
+						max_octets, sdu_interval, iso_interval,
+						stream_sync_delay, group_sync_delay,
+						pdu_alloc, pdu_write,
+						pdu_emit, pdu_release,
+						&source_handle);
+		} else {
+			ull_iso_datapath_release(dp);
+
+			return BT_HCI_ERR_CMD_DISALLOWED;
+		}
+	}
+
+	if (!err) {
+		stream->dp = dp;
+
+		dp->source_hdl = source_handle;
+		isoal_source_enable(source_handle);
+	} else {
+		ull_iso_datapath_release(dp);
+
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
+#endif /* CONFIG_BT_CTLR_ADV_ISO */
+
 #if defined(CONFIG_BT_CTLR_SYNC_ISO)
 	struct ll_sync_iso_set *sync_iso;
 	struct lll_sync_iso *lll_iso;
@@ -585,6 +664,32 @@ uint8_t ll_remove_iso_path(uint16_t handle, uint8_t path_dir)
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
+
+#if defined(CONFIG_BT_CTLR_ADV_ISO)
+	struct lll_adv_iso_stream *stream;
+	uint16_t stream_handle;
+
+	if (path_dir != BT_HCI_DATAPATH_DIR_HOST_TO_CTLR) {
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
+
+	if (handle < BT_CTLR_ADV_ISO_STREAM_HANDLE_BASE) {
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
+	stream_handle = LL_BIS_ADV_IDX_FROM_HANDLE(handle);
+
+	stream = ull_adv_iso_stream_get(stream_handle);
+	if (!stream) {
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
+
+	dp = stream->dp;
+	if (dp) {
+		isoal_source_destroy(dp->source_hdl);
+		ull_iso_datapath_release(dp);
+		stream->dp = NULL;
+	}
+#endif /* CONFIG_BT_CTLR_ADV_ISO */
 
 #if defined(CONFIG_BT_CTLR_SYNC_ISO)
 	struct lll_sync_iso_stream *stream;
@@ -1233,12 +1338,6 @@ int ll_iso_tx_mem_enqueue(uint16_t handle, void *node_tx, void *link)
 		struct lll_adv_iso_stream *stream;
 		uint16_t stream_handle;
 
-		/* FIXME: When hci_iso_handle uses ISOAL, link is provided and
-		 * this code should be removed.
-		 */
-		link = mem_acquire(&mem_link_iso_tx.free);
-		LL_ASSERT(link);
-
 		stream_handle = LL_BIS_ADV_IDX_FROM_HANDLE(handle);
 		stream = ull_adv_iso_stream_get(stream_handle);
 		memq_enqueue(link, node_tx, &stream->memq_tx.tail);
@@ -1640,7 +1739,7 @@ static isoal_status_t ll_iso_pdu_emit(struct node_tx_iso *node_tx,
 	return ISOAL_STATUS_OK;
 }
 
-#if defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
 /**
  * Release the given payload back to the memory pool.
  * @param node_tx TX node to release or forward

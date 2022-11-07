@@ -5795,50 +5795,18 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 			return -EINVAL;
 		}
 
-		/* Get free node tx */
-		tx = ll_iso_tx_mem_acquire();
-		if (!tx) {
-			LOG_ERR("ISO Tx Buffer Overflow");
-			data_buf_overflow(evt, BT_OVERFLOW_LINK_ISO);
-			return -ENOBUFS;
-		}
+		// FIXME: convey group start, sequence number
+		//sdu_frag_tx.grp_ref_point = 0;
+		sdu_frag_tx.target_event = 0;
 
-		struct pdu_bis *pdu = (void *)tx->pdu;
+		struct ll_iso_datapath *dp;
+		isoal_source_handle_t source;
 
-		/* FIXME: Update to use correct LLID for BIS and CIS */
-		switch (bt_iso_flags_pb(flags)) {
-		case BT_ISO_SINGLE:
-			pdu->ll_id = PDU_BIS_LLID_COMPLETE_END;
-			break;
-		default:
-			ll_iso_tx_mem_release(tx);
-			return -EINVAL;
-		}
+		dp = stream->dp;
+		source = dp->source_hdl;
 
-		pdu->len = slen;
-		memcpy(pdu->payload, buf->data, slen);
-
-		struct lll_adv_iso *lll_iso;
-
-		lll_iso = &adv_iso->lll;
-
-		uint64_t pkt_seq_num;
-
-		pkt_seq_num = lll_iso->payload_count / lll_iso->bn;
-		if (((pkt_seq_num - stream->pkt_seq_num) & BIT64_MASK(39)) <=
-		BIT64_MASK(38)) {
-			stream->pkt_seq_num = pkt_seq_num;
-		} else {
-			pkt_seq_num = stream->pkt_seq_num;
-		}
-
-		tx->payload_count = pkt_seq_num * lll_iso->bn;
-
-		stream->pkt_seq_num++;
-
-		if (ll_iso_tx_mem_enqueue(handle, tx, NULL)) {
-			LOG_ERR("Invalid ISO Tx Enqueue");
-			ll_iso_tx_mem_release(tx);
+		/* Start Fragmentation */
+		if (isoal_tx_sdu_fragment(source, &sdu_frag_tx)) {
 			return -EINVAL;
 		}
 

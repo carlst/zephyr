@@ -7,6 +7,7 @@
 struct lll_adv_iso_stream {
 	/* Associated BIG Handle */
 	uint8_t big_handle;
+	struct ll_iso_datapath *dp;
 
 	/* Transmission queue */
 	MEMQ_DECLARE(tx);
