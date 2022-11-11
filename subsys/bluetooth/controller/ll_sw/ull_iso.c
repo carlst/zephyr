@@ -268,7 +268,9 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 	isoal_source_handle_t source_handle;
 	uint8_t max_octets;
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
+#if defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO)
 	isoal_sink_handle_t sink_handle;
+#endif
 	uint32_t stream_sync_delay;
 	uint32_t group_sync_delay;
 	uint8_t flush_timeout;
@@ -349,23 +351,25 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
 #if defined(CONFIG_BT_CTLR_ADV_ISO)
-	struct lll_adv_iso_stream *stream;
 	uint16_t stream_handle;
+#endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_SYNC_ISO */
+
+#if defined(CONFIG_BT_CTLR_ADV_ISO)
+	struct lll_adv_iso_stream *adv_stream;
 
 	if (handle < BT_CTLR_ADV_ISO_STREAM_HANDLE_BASE) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 	stream_handle = LL_BIS_ADV_IDX_FROM_HANDLE(handle);
 
-	stream = ull_adv_iso_stream_get(stream_handle);
-	if (!stream || stream->dp) {
+	adv_stream = ull_adv_iso_stream_get(stream_handle);
+	if (!adv_stream || adv_stream->dp) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
 #if defined(CONFIG_BT_CTLR_SYNC_ISO)
 	struct lll_sync_iso_stream *stream;
-	uint16_t stream_handle;
 
 	if (handle < BT_CTLR_SYNC_ISO_STREAM_HANDLE_BASE) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
@@ -507,17 +511,17 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 
 #if defined(CONFIG_BT_CTLR_ADV_ISO)
 	struct ll_adv_iso_set *adv_iso;
-	struct lll_adv_iso *lll_iso;
+	struct lll_adv_iso *lll_adv_iso;
 
 	adv_iso = ull_adv_iso_by_stream_get(stream_handle);
-	lll_iso = &adv_iso->lll;
+	lll_adv_iso = &adv_iso->lll;
 
 	role = 1U; /* FIXME: Set role from LLL struct */
 	framed = 0;
-	burst_number = lll_iso->bn;
-	sdu_interval = lll_iso->sdu_interval;
-	max_octets = lll_iso->max_pdu;
-	iso_interval = lll_iso->sub_interval;
+	burst_number = lll_adv_iso->bn;
+	sdu_interval = lll_adv_iso->sdu_interval;
+	max_octets = lll_adv_iso->max_pdu;
+	iso_interval = lll_adv_iso->sub_interval;
 
 	if (path_id == BT_HCI_DATAPATH_ID_HCI) {
 		/* Not vendor specific, thus alloc and emit functions known */
