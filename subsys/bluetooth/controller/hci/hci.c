@@ -5758,8 +5758,6 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 
 #if defined(CONFIG_BT_CTLR_ADV_ISO)
 	if (IS_ADV_ISO_HANDLE(handle)) {
-		/* FIXME: Use ISOAL */
-		struct node_tx_iso *tx;
 		uint16_t stream_handle;
 		uint16_t slen;
 
@@ -5795,12 +5793,12 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 			return -EINVAL;
 		}
 
-		// FIXME: convey group start, sequence number
-		//sdu_frag_tx.grp_ref_point = 0;
+		/* FIXME: convey group start, sequence number */
+		/*sdu_frag_tx.grp_ref_point = 0; */
 		sdu_frag_tx.target_event = 0;
 
-		struct ll_iso_datapath *dp;
 		isoal_source_handle_t source;
+		struct ll_iso_datapath *dp;
 
 		dp = stream->dp;
 		source = dp->source_hdl;
