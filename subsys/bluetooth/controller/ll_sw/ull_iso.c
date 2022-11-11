@@ -557,7 +557,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 	}
 
 	if (!err) {
-		stream->dp = dp;
+		adv_stream->dp = dp;
 
 		dp->source_hdl = source_handle;
 		isoal_source_enable(source_handle);
