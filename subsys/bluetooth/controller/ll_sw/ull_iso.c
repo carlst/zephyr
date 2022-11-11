@@ -350,7 +350,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 	}
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO)
 	uint16_t stream_handle;
 #endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_SYNC_ISO */
 
@@ -669,9 +669,12 @@ uint8_t ll_remove_iso_path(uint16_t handle, uint8_t path_dir)
 	}
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
-	struct lll_adv_iso_stream *stream;
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO)
 	uint16_t stream_handle;
+#endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_SYNC_ISO */
+
+#if defined(CONFIG_BT_CTLR_ADV_ISO)
+	struct lll_adv_iso_stream *adv_stream;
 
 	if (path_dir != BT_HCI_DATAPATH_DIR_HOST_TO_CTLR) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
@@ -682,22 +685,21 @@ uint8_t ll_remove_iso_path(uint16_t handle, uint8_t path_dir)
 	}
 	stream_handle = LL_BIS_ADV_IDX_FROM_HANDLE(handle);
 
-	stream = ull_adv_iso_stream_get(stream_handle);
-	if (!stream) {
+	adv_stream = ull_adv_iso_stream_get(stream_handle);
+	if (!adv_stream) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 
-	dp = stream->dp;
+	dp = adv_stream->dp;
 	if (dp) {
 		isoal_source_destroy(dp->source_hdl);
 		ull_iso_datapath_release(dp);
-		stream->dp = NULL;
+		adv_stream->dp = NULL;
 	}
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
 #if defined(CONFIG_BT_CTLR_SYNC_ISO)
 	struct lll_sync_iso_stream *stream;
-	uint16_t stream_handle;
 
 	if (path_dir != BT_HCI_DATAPATH_DIR_CTLR_TO_HOST) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
