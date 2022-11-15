@@ -322,6 +322,7 @@ uint8_t ll_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 	 */
 	iso_interval_us = ((sdu_interval * lll_adv_iso->bn) /
 			   (bn * PERIODIC_INT_UNIT_US)) * PERIODIC_INT_UNIT_US;
+	lll_adv_iso->iso_interval = iso_interval_us;
 
 	/* Allocate next PDU */
 	err = ull_adv_sync_pdu_alloc(adv, ULL_ADV_PDU_EXTRA_DATA_ALLOC_IF_EXIST,

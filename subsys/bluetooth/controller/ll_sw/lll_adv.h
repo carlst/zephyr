@@ -34,6 +34,7 @@ struct lll_adv_iso {
 	uint64_t framing:1;
 	uint64_t handle:8;
 	uint64_t cssn:3;
+	uint32_t iso_interval:12;
 
 	uint8_t data_chan_map[PDU_CHANNEL_MAP_SIZE];
 	uint8_t data_chan_count:6;
