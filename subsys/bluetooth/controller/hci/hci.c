@@ -5793,9 +5793,20 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 			return -EINVAL;
 		}
 
-		/* FIXME: convey group start, sequence number */
+		/* FIXME: convey group start */
 		sdu_frag_tx.grp_ref_point = 0;
-		sdu_frag_tx.target_event = 0;
+
+		/* FIXME: temporary interface to enable ISOAL data Tx
+		 * Create provide proper interface between client
+		 * (using ISOAL target_event) and ISOAL, preferably
+		 * without dependence on peeking at LL data.
+		 * Problem is that client must specify a value greater
+		 * than LL bisPayloadCounter or no data is sent.
+		 */
+		struct lll_adv_iso *lll_iso;
+
+		lll_iso = &adv_iso->lll;
+		sdu_frag_tx.target_event = (lll_iso->payload_count / lll_iso->bn);
 
 		/* Start Fragmentation */
 		if (isoal_tx_sdu_fragment(stream->dp->source_hdl, &sdu_frag_tx)) {
