@@ -5523,7 +5523,8 @@ struct net_buf *hci_cmd_handle(struct net_buf *cmd, void **node_rx)
 	return evt;
 }
 
-#if defined(CONFIG_BT_CONN)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || \
+	defined(CONFIG_BT_CTLR_CONN_ISO)
 static void data_buf_overflow(struct net_buf **buf, uint8_t link_type)
 {
 	struct bt_hci_evt_data_buf_overflow *ep;
@@ -5796,14 +5797,8 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 		sdu_frag_tx.grp_ref_point = 0;
 		sdu_frag_tx.target_event = 0;
 
-		isoal_source_handle_t source;
-		struct ll_iso_datapath *dp;
-
-		dp = stream->dp;
-		source = dp->source_hdl;
-
 		/* Start Fragmentation */
-		if (isoal_tx_sdu_fragment(source, &sdu_frag_tx)) {
+		if (isoal_tx_sdu_fragment(stream->dp->source_hdl, &sdu_frag_tx)) {
 			return -EINVAL;
 		}
 
