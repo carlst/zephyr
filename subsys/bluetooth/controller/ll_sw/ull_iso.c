@@ -511,17 +511,17 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 
 #if defined(CONFIG_BT_CTLR_ADV_ISO)
 	struct ll_adv_iso_set *adv_iso;
-	struct lll_adv_iso *lll_adv_iso;
+	struct lll_adv_iso *adv_iso_lll;
 
 	adv_iso = ull_adv_iso_by_stream_get(stream_handle);
-	lll_adv_iso = &adv_iso->lll;
+	adv_iso_lll = &adv_iso->lll;
 
 	role = 1U; /* FIXME: Set role from LLL struct */
 	framed = 0;
-	burst_number = lll_adv_iso->bn;
-	sdu_interval = lll_adv_iso->sdu_interval;
-	max_octets = lll_adv_iso->max_pdu;
-	iso_interval = lll_adv_iso->sub_interval;
+	burst_number = adv_iso_lll->bn;
+	sdu_interval = adv_iso_lll->sdu_interval;
+	max_octets = adv_iso_lll->max_pdu;
+	iso_interval = adv_iso_lll->iso_interval;
 
 	if (path_id == BT_HCI_DATAPATH_ID_HCI) {
 		/* Not vendor specific, thus alloc and emit functions known */
