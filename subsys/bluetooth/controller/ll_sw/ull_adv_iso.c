@@ -495,7 +495,7 @@ uint8_t ll_big_terminate(uint8_t big_handle, uint8_t reason)
 
 	/* Remove ISO data path, keeping data from entering Tx pipeline */
 	num_bis = lll_adv_iso->num_bis;
-	while(num_bis--) {
+	while (num_bis--) {
 		stream_handle = lll_adv_iso->stream_handle[num_bis];
 		err = ll_remove_iso_path(stream_handle,
 					 BT_HCI_DATAPATH_DIR_HOST_TO_CTLR);
