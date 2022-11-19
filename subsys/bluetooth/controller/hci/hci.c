@@ -5809,7 +5809,9 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 		sdu_frag_tx.target_event = (lll_iso->payload_count / lll_iso->bn);
 
 		/* Start Fragmentation */
-		isoal_status_t isoal_status = isoal_tx_sdu_fragment(stream->dp->source_hdl, &sdu_frag_tx);
+		isoal_status_t isoal_status =
+			isoal_tx_sdu_fragment(stream->dp->source_hdl, &sdu_frag_tx);
+
 		if (isoal_status) {
 			if (isoal_status & ISOAL_STATUS_ERR_PDU_ALLOC) {
 				data_buf_overflow(evt, BT_OVERFLOW_LINK_ISO);
