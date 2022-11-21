@@ -31,12 +31,16 @@
 #include "lll_adv_iso.h"
 #include "lll_iso_tx.h"
 
+#include "isoal.h"
+
 #include "ull_adv_types.h"
+#include "ull_iso_types.h"
 
 #include "ull_internal.h"
 #include "ull_adv_internal.h"
 #include "ull_chan_internal.h"
 #include "ull_sched_internal.h"
+#include "ull_iso_internal.h"
 
 #include "ll.h"
 #include "ll_feat.h"
@@ -749,6 +753,7 @@ void ull_adv_iso_stream_release(struct ll_adv_iso_set *adv_iso)
 	lll = &adv_iso->lll;
 	while (lll->num_bis--) {
 		struct lll_adv_iso_stream *stream;
+		struct ll_iso_datapath *dp;
 		uint16_t stream_handle;
 		memq_link_t *link;
 
@@ -760,6 +765,13 @@ void ull_adv_iso_stream_release(struct ll_adv_iso_set *adv_iso)
 				   &stream->memq_tx.tail);
 		LL_ASSERT(link);
 		stream->link_tx_free = link;
+
+		dp = stream->dp;
+		if (dp) {
+			stream->dp = NULL;
+			isoal_source_destroy(dp->source_hdl);
+			ull_iso_datapath_release(dp);
+		}
 
 		mem_release(stream, &stream_free);
 	}
