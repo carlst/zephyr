@@ -478,6 +478,7 @@ uint8_t ll_big_terminate(uint8_t big_handle, uint8_t reason)
 	struct lll_adv *lll_adv;
 	struct ll_adv_set *adv;
 	uint16_t stream_handle;
+	uint16_t handle;
 	uint8_t num_bis;
 	uint8_t ter_idx;
 	uint8_t err;
@@ -501,7 +502,8 @@ uint8_t ll_big_terminate(uint8_t big_handle, uint8_t reason)
 	num_bis = lll_adv_iso->num_bis;
 	while (num_bis--) {
 		stream_handle = lll_adv_iso->stream_handle[num_bis];
-		err = ll_remove_iso_path(stream_handle,
+		handle = LL_BIS_ADV_HANDLE_FROM_IDX(stream_handle);
+		err = ll_remove_iso_path(handle,
 					 BT_HCI_DATAPATH_DIR_HOST_TO_CTLR);
 		if (err) {
 			return err;
