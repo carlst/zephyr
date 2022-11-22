@@ -724,8 +724,6 @@ uint8_t ll_remove_iso_path(uint16_t handle, uint8_t path_dir)
 
 		dp = stream->dp;
 		if (dp) {
-			isoal_sink_destroy(dp->sink_hdl);
-
 			stream->dp = NULL;
 			isoal_sink_destroy(dp->sink_hdl);
 			ull_iso_datapath_release(dp);
